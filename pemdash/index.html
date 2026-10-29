@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pemdash</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Pemdash: a daily order-of-operations puzzle from IO Games. Place the signs to make the equation true.">
+<meta name="theme-color" content="#14111f">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'><rect width='8' height='8' fill='%2314111f'/><rect x='3.5' y='0.5' width='1' height='1' fill='%23f2c14e'/><rect x='2.5' y='1.5' width='3' height='1' fill='%23f2c14e'/><rect x='1.5' y='2.5' width='5' height='1' fill='%23f2c14e'/><rect x='0.5' y='3.5' width='7' height='1' fill='%23f2c14e'/><rect x='1.5' y='4.5' width='5' height='1' fill='%23f2c14e'/><rect x='2.5' y='5.5' width='3' height='1' fill='%23f2c14e'/><rect x='3.5' y='6.5' width='1' height='1' fill='%23f2c14e'/></svg>">
+<style>
+/* Layout: one phone-width column. Header, equation row, sign tray, check, then rules. */
+:root {
+  --bg: #14111f;
+  --panel: #1d1930;
+  --cell: #262040;
+  --edge: #3a3352;
+  --ink: #ece6d6;
+  --muted: #a59fb8;
+  --gold: #f2c14e;
+  --ember: #e8604c;
+  --teal: #5fbfb2;
+  --shadow: #0a0812;
+  --on: #2f2850;
+  --body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { background: var(--bg); }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 var(--body); -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
+svg { display: block; image-rendering: pixelated; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+.wrap {
+  max-width: 560px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 16px 32px;
+  display: grid; gap: 16px;
+}
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.top a.home { font: 600 .75rem/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); text-decoration: none; }
+.title { height: 20px; width: auto; }
+.meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; font: .8125rem/1.3 var(--mono); color: var(--muted); }
+.meta .clock { color: var(--ink); font-variant-numeric: tabular-nums; font-size: .9375rem; }
+.proto { display: flex; align-items: center; gap: 8px; }
+.proto button { min-width: 36px; min-height: 32px; background: var(--panel); border: 2px solid var(--edge); color: var(--ink); cursor: pointer; }
+.proto button:disabled { opacity: .35; cursor: default; }
+details.how { background: var(--panel); border: 2px solid var(--edge); padding: 10px 14px; }
+details.how summary { cursor: pointer; font: 600 .8125rem/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--gold); }
+details.how ul { margin: 10px 0 2px; padding-left: 18px; display: grid; gap: 6px; font-size: .9375rem; }
+
+/* equation */
+.eq-panel { background: var(--panel); border: 3px solid var(--edge); box-shadow: 6px 6px 0 var(--shadow); padding: 18px 12px; }
+.eq { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px 6px; }
+.num {
+  min-width: 44px; height: 52px; padding: 0 8px;
+  display: grid; place-items: center;
+  font: 700 1.5rem/1 var(--mono); font-variant-numeric: tabular-nums; color: var(--ink);
+}
+.slot {
+  width: 44px; height: 52px; display: grid; place-items: center;
+  background: var(--cell); border: 2px dashed var(--edge);
+  font: 700 1.5rem/1 var(--mono); color: var(--gold); cursor: pointer; padding: 0;
+}
+.slot.f { border-style: solid; }
+.slot.cur { border: 2px solid var(--teal); background: var(--on); box-shadow: 0 0 0 2px var(--teal); }
+.slot.lock { background: #3d3320; border: 2px solid #8a6d2c; cursor: default; }
+.slot.won { background: #233d3a; border: 2px solid #3f7f77; color: #c9f2ec; }
+.slot.wrong { animation: shake .35s steps(4); }
+@keyframes shake { 0%,100% { transform: translateX(0) } 25% { transform: translateX(-3px) } 75% { transform: translateX(3px) } }
+
+.tray-wrap { display: grid; gap: 8px; }
+.lbl { font: 700 .75rem/1.3 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--teal); }
+.tray { display: flex; flex-wrap: wrap; gap: 10px; }
+.chip {
+  width: 56px; height: 56px;
+  background: var(--gold); color: var(--shadow);
+  border: 3px solid var(--shadow);
+  box-shadow: inset -3px -3px 0 rgba(0,0,0,.25), inset 3px 3px 0 rgba(255,255,255,.35), 3px 3px 0 var(--shadow);
+  font: 700 1.625rem/1 var(--mono); cursor: pointer; padding: 0; touch-action: manipulation;
+}
+.chip.eqs { background: var(--teal); }
+.chip:disabled { background: var(--edge); color: var(--muted); box-shadow: none; opacity: .45; cursor: default; }
+.chip:active:not(:disabled) { transform: translate(2px, 2px); }
+
+.actions { display: flex; gap: 12px; align-items: center; }
+.check {
+  flex: 1; min-height: 48px;
+  font: 700 .9375rem/1 var(--mono); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--shadow); background: var(--gold); border: 3px solid var(--shadow);
+  box-shadow: inset -3px -3px 0 rgba(0,0,0,.25), inset 3px 3px 0 rgba(255,255,255,.35), 4px 4px 0 var(--shadow);
+  cursor: pointer;
+}
+.check:disabled { background: var(--edge); color: var(--muted); cursor: default; box-shadow: 4px 4px 0 var(--shadow); }
+.check.alt { background: var(--ink); }
+.btn-s { min-height: 48px; padding: 6px 14px; background: var(--cell); border: 2px solid var(--edge); color: var(--gold); font: 700 .75rem/1.2 var(--mono); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+.btn-s:disabled { color: var(--muted); opacity: .5; cursor: default; }
+.pips { display: flex; gap: 6px; align-items: center; }
+.pip { width: 12px; height: 12px; background: var(--gold); border: 2px solid var(--shadow); }
+.pip.used { background: var(--edge); }
+.msg { min-height: 1.4em; margin: -4px 0 0; font: .875rem/1.4 var(--mono); color: var(--muted); }
+.msg.bad { color: var(--ember); }
+
+.result { background: var(--panel); border: 3px solid var(--edge); box-shadow: 6px 6px 0 var(--shadow); padding: 18px 16px; display: grid; gap: 12px; }
+.result h2 { margin: 0; font: 700 1.125rem/1.3 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--gold); }
+.result h2.f { color: var(--ember); }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; text-align: center; }
+.stats b { display: block; font: 700 1.375rem/1.2 var(--mono); font-variant-numeric: tabular-nums; }
+.stats span { font: .6875rem/1.3 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+.share-pre { margin: 0; padding: 10px; background: var(--bg); border: 2px solid var(--edge); font: .875rem/1.35 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.row2 { display: flex; flex-wrap: wrap; gap: 10px; }
+.row2 .check { flex: 1 1 140px; }
+footer { font: .75rem/1.5 var(--mono); color: var(--muted); text-align: center; }
+@media (prefers-reduced-motion: reduce) { .slot.wrong { animation: none; } }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header class="top">
+    <h1 style="margin:0"><svg class="title" viewBox="0 0 60 8" role="img" aria-label="WordTangle" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="1" height="1" fill="#7a4a1c"/><rect x="5" y="1" width="1" height="1" fill="#7a4a1c"/><rect x="1" y="2" width="1" height="1" fill="#7a4a1c"/><rect x="5" y="2" width="1" height="1" fill="#7a4a1c"/><rect x="1" y="3" width="1" height="1" fill="#7a4a1c"/><rect x="5" y="3" width="1" height="1" fill="#7a4a1c"/><rect x="1" y="4" width="1" height="1" fill="#7a4a1c"/><rect x="3" y="4" width="1" height="1" fill="#7a4a1c"/><rect x="5" y="4" width="1" height="1" fill="#7a4a1c"/><rect x="1" y="5" width="1" height="1" fill="#7a4a1c"/><rect x="3" y="5" width="1" height="1" fill="#7a4a1c"/><rect x="5" y="5" width="1" height="1" fill="#7a4a1c"/><rect x="1" y="6" width="2" height="1" fill="#7a4a1c"/><rect x="4" y="6" width="2" height="1" fill="#7a4a1c"/><rect x="1" y="7" width="1" height="1" fill="#7a4a1c"/><rect x="5" y="7" width="1" height="1" fill="#7a4a1c"/><rect x="8" y="1" width="3" height="1" fill="#7a4a1c"/><rect x="7" y="2" width="1" height="1" fill="#7a4a1c"/><rect x="11" y="2" width="1" height="1" fill="#7a4a1c"/><rect x="7" y="3" width="1" height="1" fill="#7a4a1c"/><rect x="11" y="3" width="1" height="1" fill="#7a4a1c"/><rect x="7" y="4" width="1" height="1" fill="#7a4a1c"/><rect x="11" y="4" width="1" height="1" fill="#7a4a1c"/><rect x="7" y="5" width="1" height="1" fill="#7a4a1c"/><rect x="11" y="5" width="1" height="1" fill="#7a4a1c"/><rect x="7" y="6" width="1" height="1" fill="#7a4a1c"/><rect x="11" y="6" width="1" height="1" fill="#7a4a1c"/><rect x="8" y="7" width="3" height="1" fill="#7a4a1c"/><rect x="13" y="1" width="4" height="1" fill="#7a4a1c"/><rect x="13" y="2" width="1" height="1" fill="#7a4a1c"/><rect x="17" y="2" width="1" height="1" fill="#7a4a1c"/><rect x="13" y="3" width="1" height="1" fill="#7a4a1c"/><rect x="17" y="3" width="1" height="1" fill="#7a4a1c"/><rect x="13" y="4" width="4" height="1" fill="#7a4a1c"/><rect x="13" y="5" width="1" height="1" fill="#7a4a1c"/><rect x="15" y="5" width="1" height="1" fill="#7a4a1c"/><rect x="13" y="6" width="1" height="1" fill="#7a4a1c"/><rect x="16" y="6" width="1" height="1" fill="#7a4a1c"/><rect x="13" y="7" width="1" height="1" fill="#7a4a1c"/><rect x="17" y="7" width="1" height="1" fill="#7a4a1c"/><rect x="19" y="1" width="4" height="1" fill="#7a4a1c"/><rect x="19" y="2" width="1" height="1" fill="#7a4a1c"/><rect x="23" y="2" width="1" height="1" fill="#7a4a1c"/><rect x="19" y="3" width="1" height="1" fill="#7a4a1c"/><rect x="23" y="3" width="1" height="1" fill="#7a4a1c"/><rect x="19" y="4" width="1" height="1" fill="#7a4a1c"/><rect x="23" y="4" width="1" height="1" fill="#7a4a1c"/><rect x="19" y="5" width="1" height="1" fill="#7a4a1c"/><rect x="23" y="5" width="1" height="1" fill="#7a4a1c"/><rect x="19" y="6" width="1" height="1" fill="#7a4a1c"/><rect x="23" y="6" width="1" height="1" fill="#7a4a1c"/><rect x="19" y="7" width="4" height="1" fill="#7a4a1c"/><rect x="25" y="1" width="5" height="1" fill="#7a4a1c"/><rect x="27" y="2" width="1" height="1" fill="#7a4a1c"/><rect x="27" y="3" width="1" height="1" fill="#7a4a1c"/><rect x="27" y="4" width="1" height="1" fill="#7a4a1c"/><rect x="27" y="5" width="1" height="1" fill="#7a4a1c"/><rect x="27" y="6" width="1" height="1" fill="#7a4a1c"/><rect x="27" y="7" width="1" height="1" fill="#7a4a1c"/><rect x="32" y="1" width="3" height="1" fill="#7a4a1c"/><rect x="31" y="2" width="1" height="1" fill="#7a4a1c"/><rect x="35" y="2" width="1" height="1" fill="#7a4a1c"/><rect x="31" y="3" width="1" height="1" fill="#7a4a1c"/><rect x="35" y="3" width="1" height="1" fill="#7a4a1c"/><rect x="31" y="4" width="5" height="1" fill="#7a4a1c"/><rect x="31" y="5" width="1" height="1" fill="#7a4a1c"/><rect x="35" y="5" width="1" height="1" fill="#7a4a1c"/><rect x="31" y="6" width="1" height="1" fill="#7a4a1c"/><rect x="35" y="6" width="1" height="1" fill="#7a4a1c"/><rect x="31" y="7" width="1" height="1" fill="#7a4a1c"/><rect x="35" y="7" width="1" height="1" fill="#7a4a1c"/><rect x="37" y="1" width="1" height="1" fill="#7a4a1c"/><rect x="41" y="1" width="1" height="1" fill="#7a4a1c"/><rect x="37" y="2" width="2" height="1" fill="#7a4a1c"/><rect x="41" y="2" width="1" height="1" fill="#7a4a1c"/><rect x="37" y="3" width="1" height="1" fill="#7a4a1c"/><rect x="39" y="3" width="1" height="1" fill="#7a4a1c"/><rect x="41" y="3" width="1" height="1" fill="#7a4a1c"/><rect x="37" y="4" width="1" height="1" fill="#7a4a1c"/><rect x="40" y="4" width="2" height="1" fill="#7a4a1c"/><rect x="37" y="5" width="1" height="1" fill="#7a4a1c"/><rect x="41" y="5" width="1" height="1" fill="#7a4a1c"/><rect x="37" y="6" width="1" height="1" fill="#7a4a1c"/><rect x="41" y="6" width="1" height="1" fill="#7a4a1c"/><rect x="37" y="7" width="1" height="1" fill="#7a4a1c"/><rect x="41" y="7" width="1" height="1" fill="#7a4a1c"/><rect x="44" y="1" width="4" height="1" fill="#7a4a1c"/><rect x="43" y="2" width="1" height="1" fill="#7a4a1c"/><rect x="43" y="3" width="1" height="1" fill="#7a4a1c"/><rect x="43" y="4" width="1" height="1" fill="#7a4a1c"/><rect x="45" y="4" width="3" height="1" fill="#7a4a1c"/><rect x="43" y="5" width="1" height="1" fill="#7a4a1c"/><rect x="47" y="5" width="1" height="1" fill="#7a4a1c"/><rect x="43" y="6" width="1" height="1" fill="#7a4a1c"/><rect x="47" y="6" width="1" height="1" fill="#7a4a1c"/><rect x="44" y="7" width="3" height="1" fill="#7a4a1c"/><rect x="49" y="1" width="1" height="1" fill="#7a4a1c"/><rect x="49" y="2" width="1" height="1" fill="#7a4a1c"/><rect x="49" y="3" width="1" height="1" fill="#7a4a1c"/><rect x="49" y="4" width="1" height="1" fill="#7a4a1c"/><rect x="49" y="5" width="1" height="1" fill="#7a4a1c"/><rect x="49" y="6" width="1" height="1" fill="#7a4a1c"/><rect x="49" y="7" width="5" height="1" fill="#7a4a1c"/><rect x="55" y="1" width="5" height="1" fill="#7a4a1c"/><rect x="55" y="2" width="1" height="1" fill="#7a4a1c"/><rect x="55" y="3" width="1" height="1" fill="#7a4a1c"/><rect x="55" y="4" width="4" height="1" fill="#7a4a1c"/><rect x="55" y="5" width="1" height="1" fill="#7a4a1c"/><rect x="55" y="6" width="1" height="1" fill="#7a4a1c"/><rect x="55" y="7" width="5" height="1" fill="#7a4a1c"/><rect x="0" y="0" width="1" height="1" fill="#f2c14e"/><rect x="4" y="0" width="1" height="1" fill="#f2c14e"/><rect x="0" y="1" width="1" height="1" fill="#f2c14e"/><rect x="4" y="1" width="1" height="1" fill="#f2c14e"/><rect x="0" y="2" width="1" height="1" fill="#f2c14e"/><rect x="4" y="2" width="1" height="1" fill="#f2c14e"/><rect x="0" y="3" width="1" height="1" fill="#f2c14e"/><rect x="2" y="3" width="1" height="1" fill="#f2c14e"/><rect x="4" y="3" width="1" height="1" fill="#f2c14e"/><rect x="0" y="4" width="1" height="1" fill="#f2c14e"/><rect x="2" y="4" width="1" height="1" fill="#f2c14e"/><rect x="4" y="4" width="1" height="1" fill="#f2c14e"/><rect x="0" y="5" width="2" height="1" fill="#f2c14e"/><rect x="3" y="5" width="2" height="1" fill="#f2c14e"/><rect x="0" y="6" width="1" height="1" fill="#f2c14e"/><rect x="4" y="6" width="1" height="1" fill="#f2c14e"/><rect x="7" y="0" width="3" height="1" fill="#f2c14e"/><rect x="6" y="1" width="1" height="1" fill="#f2c14e"/><rect x="10" y="1" width="1" height="1" fill="#f2c14e"/><rect x="6" y="2" width="1" height="1" fill="#f2c14e"/><rect x="10" y="2" width="1" height="1" fill="#f2c14e"/><rect x="6" y="3" width="1" height="1" fill="#f2c14e"/><rect x="10" y="3" width="1" height="1" fill="#f2c14e"/><rect x="6" y="4" width="1" height="1" fill="#f2c14e"/><rect x="10" y="4" width="1" height="1" fill="#f2c14e"/><rect x="6" y="5" width="1" height="1" fill="#f2c14e"/><rect x="10" y="5" width="1" height="1" fill="#f2c14e"/><rect x="7" y="6" width="3" height="1" fill="#f2c14e"/><rect x="12" y="0" width="4" height="1" fill="#f2c14e"/><rect x="12" y="1" width="1" height="1" fill="#f2c14e"/><rect x="16" y="1" width="1" height="1" fill="#f2c14e"/><rect x="12" y="2" width="1" height="1" fill="#f2c14e"/><rect x="16" y="2" width="1" height="1" fill="#f2c14e"/><rect x="12" y="3" width="4" height="1" fill="#f2c14e"/><rect x="12" y="4" width="1" height="1" fill="#f2c14e"/><rect x="14" y="4" width="1" height="1" fill="#f2c14e"/><rect x="12" y="5" width="1" height="1" fill="#f2c14e"/><rect x="15" y="5" width="1" height="1" fill="#f2c14e"/><rect x="12" y="6" width="1" height="1" fill="#f2c14e"/><rect x="16" y="6" width="1" height="1" fill="#f2c14e"/><rect x="18" y="0" width="4" height="1" fill="#f2c14e"/><rect x="18" y="1" width="1" height="1" fill="#f2c14e"/><rect x="22" y="1" width="1" height="1" fill="#f2c14e"/><rect x="18" y="2" width="1" height="1" fill="#f2c14e"/><rect x="22" y="2" width="1" height="1" fill="#f2c14e"/><rect x="18" y="3" width="1" height="1" fill="#f2c14e"/><rect x="22" y="3" width="1" height="1" fill="#f2c14e"/><rect x="18" y="4" width="1" height="1" fill="#f2c14e"/><rect x="22" y="4" width="1" height="1" fill="#f2c14e"/><rect x="18" y="5" width="1" height="1" fill="#f2c14e"/><rect x="22" y="5" width="1" height="1" fill="#f2c14e"/><rect x="18" y="6" width="4" height="1" fill="#f2c14e"/><rect x="24" y="0" width="5" height="1" fill="#f2c14e"/><rect x="26" y="1" width="1" height="1" fill="#f2c14e"/><rect x="26" y="2" width="1" height="1" fill="#f2c14e"/><rect x="26" y="3" width="1" height="1" fill="#f2c14e"/><rect x="26" y="4" width="1" height="1" fill="#f2c14e"/><rect x="26" y="5" width="1" height="1" fill="#f2c14e"/><rect x="26" y="6" width="1" height="1" fill="#f2c14e"/><rect x="31" y="0" width="3" height="1" fill="#f2c14e"/><rect x="30" y="1" width="1" height="1" fill="#f2c14e"/><rect x="34" y="1" width="1" height="1" fill="#f2c14e"/><rect x="30" y="2" width="1" height="1" fill="#f2c14e"/><rect x="34" y="2" width="1" height="1" fill="#f2c14e"/><rect x="30" y="3" width="5" height="1" fill="#f2c14e"/><rect x="30" y="4" width="1" height="1" fill="#f2c14e"/><rect x="34" y="4" width="1" height="1" fill="#f2c14e"/><rect x="30" y="5" width="1" height="1" fill="#f2c14e"/><rect x="34" y="5" width="1" height="1" fill="#f2c14e"/><rect x="30" y="6" width="1" height="1" fill="#f2c14e"/><rect x="34" y="6" width="1" height="1" fill="#f2c14e"/><rect x="36" y="0" width="1" height="1" fill="#f2c14e"/><rect x="40" y="0" width="1" height="1" fill="#f2c14e"/><rect x="36" y="1" width="2" height="1" fill="#f2c14e"/><rect x="40" y="1" width="1" height="1" fill="#f2c14e"/><rect x="36" y="2" width="1" height="1" fill="#f2c14e"/><rect x="38" y="2" width="1" height="1" fill="#f2c14e"/><rect x="40" y="2" width="1" height="1" fill="#f2c14e"/><rect x="36" y="3" width="1" height="1" fill="#f2c14e"/><rect x="39" y="3" width="2" height="1" fill="#f2c14e"/><rect x="36" y="4" width="1" height="1" fill="#f2c14e"/><rect x="40" y="4" width="1" height="1" fill="#f2c14e"/><rect x="36" y="5" width="1" height="1" fill="#f2c14e"/><rect x="40" y="5" width="1" height="1" fill="#f2c14e"/><rect x="36" y="6" width="1" height="1" fill="#f2c14e"/><rect x="40" y="6" width="1" height="1" fill="#f2c14e"/><rect x="43" y="0" width="4" height="1" fill="#f2c14e"/><rect x="42" y="1" width="1" height="1" fill="#f2c14e"/><rect x="42" y="2" width="1" height="1" fill="#f2c14e"/><rect x="42" y="3" width="1" height="1" fill="#f2c14e"/><rect x="44" y="3" width="3" height="1" fill="#f2c14e"/><rect x="42" y="4" width="1" height="1" fill="#f2c14e"/><rect x="46" y="4" width="1" height="1" fill="#f2c14e"/><rect x="42" y="5" width="1" height="1" fill="#f2c14e"/><rect x="46" y="5" width="1" height="1" fill="#f2c14e"/><rect x="43" y="6" width="3" height="1" fill="#f2c14e"/><rect x="48" y="0" width="1" height="1" fill="#f2c14e"/><rect x="48" y="1" width="1" height="1" fill="#f2c14e"/><rect x="48" y="2" width="1" height="1" fill="#f2c14e"/><rect x="48" y="3" width="1" height="1" fill="#f2c14e"/><rect x="48" y="4" width="1" height="1" fill="#f2c14e"/><rect x="48" y="5" width="1" height="1" fill="#f2c14e"/><rect x="48" y="6" width="5" height="1" fill="#f2c14e"/><rect x="54" y="0" width="5" height="1" fill="#f2c14e"/><rect x="54" y="1" width="1" height="1" fill="#f2c14e"/><rect x="54" y="2" width="1" height="1" fill="#f2c14e"/><rect x="54" y="3" width="4" height="1" fill="#f2c14e"/><rect x="54" y="4" width="1" height="1" fill="#f2c14e"/><rect x="54" y="5" width="1" height="1" fill="#f2c14e"/><rect x="54" y="6" width="5" height="1" fill="#f2c14e"/></svg></h1>
+    <a class="home" href="/">IO Games</a>
+  </header>
+
+  <div class="meta">
+    <div class="proto" id="proto" aria-label="Puzzle picker">
+      <button id="prev" type="button" aria-label="Previous puzzle">&lsaquo;</button>
+      <span id="pnum">#1</span>
+      <button id="next" type="button" aria-label="Next puzzle">&rsaquo;</button>
+    </div>
+    <span id="shape"></span>
+    <span class="clock" id="clock" aria-label="Time">0:00</span>
+  </div>
+
+  <details class="how" id="how">
+    <summary>How to play</summary>
+    <ul>
+      <li>Put every sign from the tray into the gaps to make a true equation. Each sign is used once, and there is exactly one =.</li>
+      <li>Normal order of operations: &times; and &divide; before + and &minus;.</li>
+      <li>Every step must stay a whole number, zero or more. No fractions, no negatives.</li>
+      <li>Tap a gap, then tap a sign. Tap a placed sign to take it back.</li>
+      <li>Fill every gap, then <b>Check</b>. You get 3 checks. Your score is checks plus hints, like golf: beat the par.</li>
+    </ul>
+  </details>
+
+  <section class="eq-panel" aria-label="Equation">
+    <div class="eq" id="eq"></div>
+  </section>
+
+  <div id="play" style="display:grid;gap:14px">
+    <div class="tray-wrap">
+      <div class="lbl">Signs</div>
+      <div class="tray" id="tray"></div>
+    </div>
+    <div class="actions">
+      <button class="check" id="check" type="button" disabled>Check</button>
+      <button class="btn-s" id="hint" type="button">Hint: place a sign</button>
+    </div>
+    <div class="actions" style="justify-content:space-between">
+      <div class="pips" id="pips" aria-label="Checks left"></div>
+      <button class="btn-s" id="clear" type="button" style="min-height:36px">Clear</button>
+    </div>
+    <p class="msg" id="msg" aria-live="polite"></p>
+  </div>
+
+  <section class="result" id="result" hidden>
+    <h2 id="rh"></h2>
+    <div id="rline"></div>
+    <div class="stats" id="stats"></div>
+    <pre class="share-pre" id="sharePre"></pre>
+    <div class="row2">
+      <button class="check" id="share" type="button">Copy result</button>
+      <button class="check alt" id="again" type="button">Reset puzzle</button>
+    </div>
+  </section>
+
+  <footer>Pemdash by IO Games. Your progress stays on this device. Finished puzzles are counted anonymously (puzzle number, result and score only).</footer>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  var GAME = "pemdash", LIVE = true, API = "https://script.google.com/macros/s/AKfycbzxlJIAAwQbGZ2rSdf8uBiRgskIYVQDvIWddeXoB1oAFMRCLFsgr0P7StOB6naYKIwz/exec";
+  function report(st) {
+    if (!LIVE || !API) return;
+    try { fetch(API, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ game: GAME, puzzle: P.id, result: st, score: st === "solved" ? score() : null }) }).catch(function () {}); } catch (e) {}
+  }
+  var KEY = "iogames-pz";
+  function dec(s) {
+    var b = atob(s), o = "";
+    for (var i = 0; i < b.length; i++) o += String.fromCharCode(b.charCodeAt(i) ^ KEY.charCodeAt(i % KEY.length));
+    return JSON.parse(o);
+  }
+  var PUZZLES = dec("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");
+  var MAX_CHECKS = 3;
+  var SYM = { "+": "+", "-": "−", "*": "×", "/": "÷", "=": "=" };
+  function store(k, v) { try { if (v === undefined) { var r = localStorage.getItem(k); return r ? JSON.parse(r) : null; } localStorage.setItem(k, JSON.stringify(v)); } catch (e) { return null; } }
+  function $(id) { return document.getElementById(id); }
+
+  var P, S, idx, cur = 0, last = 0;
+
+  /* returns {v: number} or {err: "frac"|"neg"} using normal precedence */
+  function evalSide(nums, ops) {
+    var vals = [nums[0]], pend = [];
+    for (var i = 0; i < ops.length; i++) {
+      var o = ops[i], n = nums[i + 1];
+      if (o === "*") vals[vals.length - 1] *= n;
+      else if (o === "/") { if (n === 0 || vals[vals.length - 1] % n) return { err: "frac" }; vals[vals.length - 1] /= n; }
+      else { pend.push(o); vals.push(n); }
+    }
+    var acc = vals[0];
+    for (var j = 0; j < pend.length; j++) { acc = pend[j] === "+" ? acc + vals[j + 1] : acc - vals[j + 1]; if (acc < 0) return { err: "neg" }; }
+    return { v: acc };
+  }
+  function signsNow() { return S.slots.map(function (c) { return c === null ? null : P.pool[c]; }); }
+
+  function fresh() { return { slots: P.sol.map(function () { return null; }), locked: P.sol.map(function () { return false; }), rows: [], checks: 0, hintCount: 0, elapsed: 0, started: false, status: "playing" }; }
+  function save() { store(KEY + ":p:" + P.id, S); }
+
+  function load(i) {
+    idx = i; P = PUZZLES[i];
+    S = store(KEY + ":p:" + P.id) || fresh();
+    store(KEY + ":last", P.id);
+    cur = firstEmpty();
+    $("pnum").textContent = "#" + P.id;
+    $("prev").disabled = i === 0; $("next").disabled = i === PUZZLES.length - 1;
+    $("shape").textContent = P.nums.length + " numbers · par " + P.par;
+    msg(""); render();
+  }
+  function firstEmpty(from) {
+    var n = S.slots.length, f = from || 0;
+    for (var k = 0; k < n; k++) { var j = (f + k) % n; if (S.slots[j] === null && !S.locked[j]) return j; }
+    return Math.min(f, n - 1);
+  }
+  function start() { if (!S.started && S.status === "playing") { S.started = true; last = Date.now(); save(); } }
+
+  function tapSlot(j) {
+    if (S.status !== "playing" || S.locked[j]) return;
+    start();
+    if (cur === j && S.slots[j] !== null) S.slots[j] = null;
+    cur = j; save(); render();
+  }
+  function place(chipIdx) {
+    if (S.status !== "playing") return;
+    start();
+    if (S.slots.indexOf(chipIdx) >= 0) return;
+    if (S.locked[cur]) cur = firstEmpty(cur);
+    if (S.locked[cur]) return;
+    S.slots[cur] = chipIdx;
+    cur = firstEmpty(cur + 1);
+    msg(""); save(); render();
+  }
+  function placeSign(sign) {
+    for (var c = 0; c < P.pool.length; c++) if (P.pool[c] === sign && S.slots.indexOf(c) < 0) { place(c); return; }
+  }
+  function back() {
+    if (S.status !== "playing") return;
+    if (S.slots[cur] !== null && !S.locked[cur]) S.slots[cur] = null;
+    else { for (var j = cur - 1; j >= 0; j--) if (!S.locked[j]) { cur = j; S.slots[j] = null; break; } }
+    save(); render();
+  }
+  function clearAll() {
+    if (S.status !== "playing") return;
+    S.slots = S.slots.map(function (c, j) { return S.locked[j] ? c : null; });
+    cur = firstEmpty(0); msg(""); save(); render();
+  }
+  function filled() { return S.slots.every(function (c) { return c !== null; }); }
+
+  function check() {
+    if (S.status !== "playing" || !filled()) return;
+    start();
+    S.checks++;
+    var ops = signsNow(), eqAt = ops.indexOf("=");
+    var L = evalSide(P.nums.slice(0, eqAt + 1), ops.slice(0, eqAt));
+    var R = evalSide(P.nums.slice(eqAt + 1), ops.slice(eqAt + 1));
+    S.rows.push(ops.map(function (o, j) { return S.locked[j] ? 1 : (o === P.sol[j] ? 2 : 0); }));
+    if (L.v !== undefined && R.v !== undefined && L.v === R.v) { finish("solved"); return; }
+    function side(name, r) { return r.err === "frac" ? name + " side has a division that isn't whole" : r.err === "neg" ? name + " side goes below zero" : name + " side = " + r.v; }
+    if (S.checks >= MAX_CHECKS) {
+      var taken = {};
+      S.slots = P.sol.map(function (sign) { for (var c = 0; c < P.pool.length; c++) if (P.pool[c] === sign && !taken[c]) { taken[c] = 1; return c; } return null; });
+      finish("failed"); return;
+    }
+    var left = MAX_CHECKS - S.checks;
+    msg(side("Left", L) + ". " + side("Right", R) + ". " + left + (left === 1 ? " check" : " checks") + " left.", "bad");
+    save(); render();
+    document.querySelectorAll(".slot").forEach(function (el) { el.classList.remove("wrong"); void el.offsetWidth; el.classList.add("wrong"); });
+  }
+
+  function hint() {
+    if (S.status !== "playing") return;
+    var j;
+    for (j = 0; j < P.sol.length; j++) if (!S.locked[j] && (S.slots[j] === null || P.pool[S.slots[j]] !== P.sol[j])) break;
+    if (j === P.sol.length) { for (j = 0; j < P.sol.length; j++) if (!S.locked[j]) break; }
+    if (j === P.sol.length) return;
+    start();
+    var want = P.sol[j], chip = -1, c;
+    for (c = 0; c < P.pool.length; c++) if (P.pool[c] === want && S.slots.indexOf(c) < 0) { chip = c; break; }
+    if (chip < 0) for (c = 0; c < P.pool.length; c++) if (P.pool[c] === want) { var k = S.slots.indexOf(c); if (k >= 0 && !S.locked[k]) { S.slots[k] = null; chip = c; break; } }
+    if (chip < 0) return;
+    S.slots[j] = chip; S.locked[j] = true; S.hintCount++;
+    if (S.locked.every(Boolean)) { finish("solved"); return; }
+    cur = firstEmpty(j); save(); render();
+  }
+
+  function finish(st) {
+    S.status = st;
+    if (!S.counted) {
+      S.counted = true;
+      report(st);
+      var stats = store(KEY + ":stats") || { played: 0, solved: 0, streak: 0, best: 0, lastId: null };
+      stats.played++;
+      if (st === "solved") { stats.solved++; stats.streak = stats.lastId === P.id - 1 ? stats.streak + 1 : 1; stats.best = Math.max(stats.best, stats.streak); }
+      else stats.streak = 0;
+      stats.lastId = P.id; store(KEY + ":stats", stats);
+    }
+    save(); render();
+  }
+  function score() { return S.checks + S.hintCount; }
+  function vsPar() { var d = score() - P.par; return d === 0 ? "even" : d < 0 ? (-d) + " under par" : d + " over par"; }
+  function fmt(ms) { var t = Math.floor(ms / 1000), m = Math.floor(t / 60), s = t % 60; return m + ":" + (s < 10 ? "0" : "") + s; }
+  function shareText() {
+    var sq = ["⬛", "🟨", "🟩"];
+    var rows = S.rows.map(function (r) { return r.map(function (x) { return sq[x]; }).join(""); });
+    var head = "Pemdash #" + P.id + " " + (S.status === "solved" ? score() + " (par " + P.par + ", " + vsPar() + ") in " + fmt(S.elapsed) : "X/" + MAX_CHECKS);
+    return head + "\n" + rows.join("\n") + "\niogames.us/pemdash";
+  }
+  function msg(t, cls) { var m = $("msg"); m.textContent = t || ""; m.className = "msg" + (cls ? " " + cls : ""); }
+
+  function render() {
+    var playing = S.status === "playing";
+    var eq = $("eq"); eq.innerHTML = "";
+    P.nums.forEach(function (n, i) {
+      var d = document.createElement("span"); d.className = "num"; d.textContent = n; eq.appendChild(d);
+      if (i < P.sol.length) {
+        var b = document.createElement("button"); b.type = "button"; b.className = "slot";
+        var c = S.slots[i];
+        b.textContent = c === null ? "" : SYM[P.pool[c]];
+        if (c !== null) b.classList.add("f");
+        if (S.locked[i]) b.classList.add("lock");
+        if (S.status === "solved") b.classList.add("won");
+        if (playing && i === cur) b.classList.add("cur");
+        b.setAttribute("aria-label", "Gap " + (i + 1) + (c === null ? ", empty" : ", " + P.pool[c]));
+        b.addEventListener("click", function () { tapSlot(i); });
+        eq.appendChild(b);
+      }
+    });
+    var tray = $("tray"); tray.innerHTML = "";
+    P.pool.forEach(function (sign, c) {
+      var b = document.createElement("button"); b.type = "button"; b.className = "chip" + (sign === "=" ? " eqs" : "");
+      b.textContent = SYM[sign]; b.disabled = !playing || S.slots.indexOf(c) >= 0;
+      b.setAttribute("aria-label", "Sign " + sign);
+      b.addEventListener("click", function () { place(c); });
+      tray.appendChild(b);
+    });
+    var full = filled();
+    $("check").disabled = !playing || !full;
+    $("check").textContent = full ? "Check" : "Fill every gap";
+    $("hint").disabled = !playing;
+    var pips = ""; for (var i = 0; i < MAX_CHECKS; i++) pips += '<span class="pip' + (i < S.checks ? " used" : "") + '"></span>';
+    $("pips").innerHTML = pips;
+    $("clock").textContent = fmt(S.elapsed);
+    $("play").hidden = !playing; $("result").hidden = playing;
+    if (!playing) {
+      var ok = S.status === "solved";
+      $("rh").textContent = ok ? "Balanced" : "Out of checks"; $("rh").className = ok ? "" : "f";
+      $("rline").textContent = ok ? "Score " + score() + " against par " + P.par + " (" + vsPar() + "): " + S.checks + (S.checks === 1 ? " check" : " checks") + ", " + S.hintCount + (S.hintCount === 1 ? " hint" : " hints") + ". Time " + fmt(S.elapsed) + "."
+                                  : "The answer is filled in above.";
+      var st = store(KEY + ":stats") || { played: 0, solved: 0, streak: 0, best: 0 };
+      $("stats").innerHTML = '<div><b>' + st.played + '</b><span>Played</span></div><div><b>' + (st.played ? Math.round(100 * st.solved / st.played) : 0) + '%</b><span>Solved</span></div><div><b>' + st.streak + '</b><span>Streak</span></div><div><b>' + st.best + '</b><span>Best</span></div>';
+      $("sharePre").textContent = shareText();
+    }
+  }
+
+  function tick() {
+    if (S && S.started && S.status === "playing" && document.visibilityState === "visible") {
+      var now = Date.now(); if (last) S.elapsed += now - last; last = now;
+      $("clock").textContent = fmt(S.elapsed);
+      if ((S.elapsed / 1000 | 0) % 2 === 0) save();
+    } else last = Date.now();
+  }
+  document.addEventListener("visibilitychange", function () { last = Date.now(); if (S) save(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey || !S) return;
+    var map = { "+": "+", "-": "-", "*": "*", "x": "*", "X": "*", "/": "/", "=": "=" };
+    if (map[e.key]) { placeSign(map[e.key]); e.preventDefault(); }
+    else if (e.key === "Backspace") { back(); e.preventDefault(); }
+    else if (e.key === "Enter") check();
+    else if (e.key === "ArrowLeft") { cur = Math.max(0, cur - 1); render(); }
+    else if (e.key === "ArrowRight") { cur = Math.min(P.sol.length - 1, cur + 1); render(); }
+  });
+  $("check").addEventListener("click", check);
+  $("hint").addEventListener("click", hint);
+  $("clear").addEventListener("click", clearAll);
+  $("prev").addEventListener("click", function () { if (idx > 0) load(idx - 1); });
+  $("next").addEventListener("click", function () { if (idx < PUZZLES.length - 1) load(idx + 1); });
+  $("again").addEventListener("click", function () { S = fresh(); save(); load(idx); });
+  $("share").addEventListener("click", function () {
+    var t = shareText(), b = $("share");
+    function done(ok) { b.textContent = ok ? "Copied" : "Select the text above to copy"; setTimeout(function () { b.textContent = "Copy result"; }, 2000); }
+    function fallback() { var r = document.createRange(); r.selectNodeContents($("sharePre")); var sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); done(false); }
+    try { navigator.clipboard.writeText(t).then(function () { done(true); }, fallback); } catch (e) { fallback(); }
+  });
+  if (!store(KEY + ":seen")) { $("how").open = true; store(KEY + ":seen", 1); }
+  function indexOf(id) { for (var i = 0; i < PUZZLES.length; i++) if (PUZZLES[i].id === id) return i; return -1; }
+  if (LIVE) {
+    /* today's puzzle comes from the play counter; until it answers, show the last one this device saw */
+    $("prev").hidden = true; $("next").hidden = true;
+    var known = store(KEY + ":current") || 1;
+    load(Math.max(0, indexOf(known)));
+    if (API) {
+      fetch(API).then(function (r) { return r.json(); }).then(function (d) {
+        var cur = d && d[GAME] && d[GAME].current;
+        if (cur && indexOf(cur) >= 0) { store(KEY + ":current", cur); if (cur !== P.id) load(indexOf(cur)); }
+      }).catch(function () {});
+    }
+  } else {
+    var lastId = store(KEY + ":last"), s0 = 0;
+    PUZZLES.forEach(function (p, i) { if (p.id === lastId) s0 = i; });
+    load(s0);
+  }
+  setInterval(tick, 250);
+})();
+</script>
+</body>
+</html>
