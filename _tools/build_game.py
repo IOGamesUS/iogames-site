@@ -15,7 +15,9 @@ html = (html.replace("{{TITLE_SVG}}", title).replace("{{FAVICON}}", ns["favicon"
         .replace("{{LIVE}}", "true").replace("{{API}}", API).replace("{{ROBOTS}}", "")
         .replace(" prototype by IO Games", " by IO Games")
         .replace("Your progress stays on this device.", "Your progress stays on this device. Finished puzzles are counted anonymously (puzzle number, result and score only)."))
-assert "—" not in html
+# live pages: no "Reset puzzle", so a finished puzzle is counted once
+html = html.replace("</style>", "#again { display: none !important; }\n</style>", 1)
+assert "\u2014" not in html
 os.makedirs(os.path.join(root, game), exist_ok=True)
 open(os.path.join(root, game, "index.html"), "w").write(html)
 print("built", game, len(data), "puzzles")
