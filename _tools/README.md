@@ -2,9 +2,10 @@
 
 Not published: GitHub Pages skips folders that start with an underscore.
 
-- `build_game.py wordtangle|pemdash`: rebuilds `<game>/index.html` from `_tools/<game>/template.html` and `puzzles.enc`.
+- `build_game.py wordtangle|pemdash|meld`: rebuilds `<game>/index.html` from `_tools/<game>/template.html` and `puzzles.enc`.
 - `codec.py`: decode a puzzles.enc to JSON for editing, and encode it back. Answers are lightly obfuscated, not secret.
 - `wordtangle/gen.py`: finds word rectangles (needs `pip install wordfreq`). Clues are written by hand.
+- `meld/gen.py`: generates Rummy Run hands (code name meld) with exactly one way to split them into sets and runs; aces high or low, no wrapping.
 - `pemdash/gen.py`: generates order-of-operations puzzles with exactly one solution.
 - `home/build.py`: builds the home page (`python3 _tools/home/build.py index.html`).
 - `counter/Code.gs`: the Apps Script play counter. When a game's queue grows, raise its number in GAMES there and redeploy a new version.

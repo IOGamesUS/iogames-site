@@ -1,6 +1,6 @@
 """Encode/decode puzzle files. Same light XOR obfuscation the game pages use, so answers are not plain text in the repo."""
 import base64, json, sys
-KEYS = {"wordtangle": b"iogames-wt", "pemdash": b"iogames-pz"}
+KEYS = {"wordtangle": b"iogames-wt", "pemdash": b"iogames-pz", "meld": b"iogames-md"}
 def enc(game, data):
     raw = json.dumps(data, separators=(",", ":")).encode()
     k = KEYS[game]

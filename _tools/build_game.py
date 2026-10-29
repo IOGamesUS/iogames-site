@@ -1,4 +1,4 @@
-"""Build a live game page.  python3 _tools/build_game.py wordtangle|pemdash
+"""Build a live game page.  python3 _tools/build_game.py wordtangle|pemdash|meld
 Reads _tools/<game>/template.html and puzzles.enc, writes <game>/index.html (the published page)."""
 import os, sys, json, re
 here = os.path.dirname(os.path.abspath(__file__)); root = os.path.dirname(here)
@@ -8,7 +8,7 @@ API = "https://script.google.com/macros/s/AKfycbzxlJIAAwQbGZ2rSdf8uBiRgskIYVQDvI
 ns = {"__name__": "x", "sys": sys}
 src = open(os.path.join(here, "home", "build.py")).read().split("wordmark = ")[0].replace("OUT = sys.argv[1]", "OUT=None")
 exec(src, ns)
-title = ns["word_svg"]({"wordtangle": "WORDTANGLE", "pemdash": "PEMDASH"}[game], "title", "#f2c14e", "#7a4a1c", {"wordtangle": "WordTangle", "pemdash": "Pemdash"}[game])
+title = ns["word_svg"]({"wordtangle": "WORDTANGLE", "pemdash": "PEMDASH", "meld": "RUMMY RUN"}[game], "title", "#f2c14e", "#7a4a1c", {"wordtangle": "WordTangle", "pemdash": "Pemdash", "meld": "Rummy Run"}[game])
 data = codec.dec(game, open(os.path.join(here, game, "puzzles.enc")).read().strip())
 html = open(os.path.join(here, game, "template.html")).read()
 html = (html.replace("{{TITLE_SVG}}", title).replace("{{FAVICON}}", ns["favicon"]()).replace("{{DATA}}", codec.enc(game, data))
