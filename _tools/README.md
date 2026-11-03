@@ -8,6 +8,8 @@ Not published: GitHub Pages skips folders that start with an underscore.
 - `meld/gen.py`: generates Rummy Run hands (code name meld) with exactly one way to split them into sets and runs; aces high or low, no wrapping.
 - `pemdash/gen.py`: generates order-of-operations puzzles with exactly one solution.
 - `home/build.py`: builds the home page (`python3 _tools/home/build.py index.html`).
-- `counter/Code.gs`: the Apps Script play counter. When a game's queue grows, raise its number in GAMES there and redeploy a new version.
+- `counter/Code.gs`: the Apps Script play counter (copy of what is deployed). When a game's queue grows, raise its number in GAMES there and redeploy a new version. It also serves each puzzle's results for the percentile panel.
+- `after.js`: the panel under every finished puzzle (percentile and links to the other games), added by build_game.py.
+- `crazypath/`: built but not yet published; publish with `python3 _tools/build_game.py crazypath` once the counter lists it.
 
 Puzzle ids are play order. The counter serves today's puzzle number per game and moves on overnight only if the current puzzle was played.
