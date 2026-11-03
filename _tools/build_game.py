@@ -26,7 +26,7 @@ LIVE_GAMES = [g for g in [
 html = html.replace("result: st, score:", "result: st, secs: Math.round(S.elapsed / 1000), score:")
 # header link goes back to the puzzle list on the home page
 html = html.replace('<a class="home" href="/">IO Games</a>', '<a class="home" href="/#daily">&lsaquo; All puzzles</a>')
-after = open(os.path.join(here, "after.js")).read().replace("{{API}}", API).replace("{{GAME}}", game).replace("{{GAMES}}", json.dumps(LIVE_GAMES))
+after = open(os.path.join(here, "after.js")).read().replace("{{API}}", API).replace("{{GAME}}", game).replace("{{GAMES}}", json.dumps(LIVE_GAMES)).replace("{{KEY}}", {"wordtangle": "iogames-wt", "pemdash": "iogames-pz", "meld": "iogames-md", "crazypath": "iogames-cp"}[game])
 html = html.replace("</body>", "<script>\n" + after + "</script>\n</body>", 1)
 # live pages: no "Reset puzzle", so a finished puzzle is counted once
 html = html.replace("</style>", "#again { display: none !important; }\n</style>", 1)

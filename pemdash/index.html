@@ -427,6 +427,28 @@ footer { font: .75rem/1.5 var(--mono); color: var(--muted); text-align: center; 
 })();
 </script>
 <script>
+/* "How to play" stays out of the way: it opens only for a brand new player, closes as soon as they
+   start playing, and remembers whether the player last left it open or closed. */
+(function () {
+  var KEY = "iogames-pz", how = document.getElementById("how");
+  if (!how) return;
+  function get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  var pref = get(KEY + ":how"), played = !!get(KEY + ":stats");
+  if (pref === "open") how.open = true;
+  else if (pref === "closed" || played) how.open = false;
+  var auto = true;
+  how.addEventListener("toggle", function () { if (auto) return; set(KEY + ":how", how.open ? "open" : "closed"); });
+  setTimeout(function () { auto = false; }, 0);
+  document.addEventListener("pointerdown", function first(e) {
+    if (how.contains(e.target)) return;
+    var a = e.target.closest && e.target.closest("a");
+    if (a) return;
+    document.removeEventListener("pointerdown", first, true);
+    if (how.open && pref !== "open") { auto = true; how.open = false; set(KEY + ":how", "closed"); setTimeout(function () { auto = false; }, 0); }
+  }, true);
+})();
+
 /* IO Games: shown under every finished daily puzzle.
    Adds "how you stack up" (percentile against today's players) and links to the other daily puzzles.
    Reads the game's own saved progress from this device; asks the play counter for everyone else's results. */
