@@ -11,5 +11,6 @@ Not published: GitHub Pages skips folders that start with an underscore.
 - `counter/Code.gs`: the Apps Script play counter (copy of what is deployed). When a game's queue grows, raise its number in GAMES there and redeploy a new version. It also serves each puzzle's results for the percentile panel.
 - `after.js`: the panel under every finished puzzle (percentile and links to the other games), added by build_game.py.
 - `crazypath/`: built but not yet published; publish with `python3 _tools/build_game.py crazypath` once the counter lists it.
+- `pokerrows/`: built but not yet published. `gen.py` makes 3x3 and 4x4 grids with exactly one answer. Preview without the counter: `python3 _tools/build_game.py pokerrows /path/preview.html`.
 
 Puzzle ids are play order. The counter serves today's puzzle number per game and moves on overnight only if the current puzzle was played.

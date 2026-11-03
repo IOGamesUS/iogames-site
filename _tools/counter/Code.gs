@@ -7,7 +7,7 @@
  */
 
 // Number of puzzles in each game's queue. Update these when new puzzles are added to the site.
-var GAMES = { wordtangle: 39, pemdash: 32, meld: 32, crazypath: 32 };
+var GAMES = { wordtangle: 39, pemdash: 32, meld: 32, crazypath: 32, pokerrows: 32 };
 var TZ = 'America/New_York';
 
 // Run once from the editor: creates the sheets, sets each game to puzzle 1 and adds the nightly trigger.

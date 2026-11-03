@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Poker Rows</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Poker Rows: a daily card deduction puzzle from IO Games. Place the cards so every row and column makes its poker hand.">
+<meta name="theme-color" content="#14111f">
+{{ROBOTS}}
+<link rel="icon" href="{{FAVICON}}">
+<style>
+/* Layout: one phone-width column. Header, the card grid with hand labels on the right and below, the tray, actions, rules. */
+:root {
+  --bg: #14111f;
+  --panel: #1d1930;
+  --cell: #262040;
+  --edge: #3a3352;
+  --ink: #ece6d6;
+  --muted: #a59fb8;
+  --gold: #f2c14e;
+  --ember: #e8604c;
+  --teal: #5fbfb2;
+  --shadow: #0a0812;
+  --paper: #f3ecda;
+  --paper-edge: #c9bd9e;
+  --spade: #2a2540;
+  --body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { background: var(--bg); }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 var(--body); -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
+svg { display: block; }
+.title { image-rendering: pixelated; height: 20px; width: auto; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+.wrap { max-width: 520px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 16px 32px; display: grid; gap: 16px; }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.top a.home { font: 600 .75rem/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); text-decoration: none; }
+.meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; font: .8125rem/1.3 var(--mono); color: var(--muted); }
+.meta .clock { color: var(--ink); font-variant-numeric: tabular-nums; font-size: .9375rem; }
+.proto { display: flex; align-items: center; gap: 8px; }
+.proto button { min-width: 36px; min-height: 32px; background: var(--panel); border: 2px solid var(--edge); color: var(--ink); cursor: pointer; }
+.proto button:disabled { opacity: .35; cursor: default; }
+details.how { background: var(--panel); border: 2px solid var(--edge); padding: 10px 14px; }
+details.how summary { cursor: pointer; font: 600 .8125rem/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--gold); }
+details.how ul { margin: 10px 0 2px; padding-left: 18px; display: grid; gap: 6px; font-size: .9375rem; }
+
+/* board */
+.board-wrap { display: flex; justify-content: center; }
+.board { display: grid; gap: 6px; background: var(--panel); border: 3px solid var(--edge); box-shadow: 6px 6px 0 var(--shadow); padding: 8px; align-items: center; justify-items: center; }
+.slot { width: var(--cw); height: calc(var(--cw) * 1.3); padding: 0; background: var(--cell); border: 2px dashed var(--edge); cursor: pointer; display: grid; place-items: center; }
+.slot.target { border-color: var(--teal); border-style: solid; background: #233d3a; }
+.card {
+  width: var(--cw); height: calc(var(--cw) * 1.3);
+  background: var(--paper); border: 2px solid var(--paper-edge); box-shadow: 2px 2px 0 var(--shadow);
+  display: grid; grid-template-rows: auto 1fr; justify-items: center; align-items: center;
+  padding: 3px 0 2px; cursor: pointer; font: inherit;
+}
+.card .r { font: 700 calc(var(--cw) * .32)/1 var(--mono); }
+.card .s { font: 400 calc(var(--cw) * .44)/1 var(--body); }
+.card.H { color: #c8412e; }
+.card.D { color: #a35f00; }
+.card.S { color: var(--spade); }
+.card.C { color: #2c7d72; }
+.card.given { background: #d9d0bb; border-color: #a99d80; cursor: default; box-shadow: none; }
+.card.lock { background: #f1e2b4; border-color: #b8913a; cursor: default; }
+.card.sel { border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal), 2px 2px 0 var(--shadow); transform: translateY(-4px); }
+.card.bad { color: var(--ember); border-color: var(--ember); }
+.lab { font: 700 .6875rem/1.2 var(--mono); letter-spacing: 0; color: var(--gold); text-align: center; width: 100%; padding: 2px 0; overflow-wrap: normal; word-break: keep-all; }
+.board.n4 .lab:not(.row) { font-size: .625rem; }
+.lab.row { text-align: left; width: 74px; }
+.lab.ok { color: var(--teal); }
+.lab.no { color: var(--ember); }
+.lab .mk { display: block; font-size: .625rem; }
+
+.tray-wrap { display: grid; gap: 6px; }
+.lbl { font: 700 .75rem/1.3 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--teal); }
+.tray { display: flex; flex-wrap: wrap; gap: 8px; min-height: 60px; }
+.tray .card { --cw: 48px; }
+.tray .done { font: .875rem/1.4 var(--mono); color: var(--muted); align-self: center; }
+
+.actions { display: flex; gap: 12px; align-items: center; }
+.go {
+  flex: 1; min-height: 48px;
+  font: 700 .9375rem/1 var(--mono); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--shadow); background: var(--gold); border: 3px solid var(--shadow);
+  box-shadow: inset -3px -3px 0 rgba(0,0,0,.25), inset 3px 3px 0 rgba(255,255,255,.35), 4px 4px 0 var(--shadow);
+  cursor: pointer;
+}
+.go:disabled { background: var(--edge); color: var(--muted); cursor: default; box-shadow: 4px 4px 0 var(--shadow); }
+.go.alt { background: var(--ink); }
+.btn-s { min-height: 48px; padding: 6px 14px; background: var(--cell); border: 2px solid var(--edge); color: var(--gold); font: 700 .75rem/1.2 var(--mono); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+.btn-s:disabled { color: var(--muted); opacity: .5; cursor: default; }
+.pips { display: flex; gap: 6px; align-items: center; }
+.pip { width: 12px; height: 12px; background: var(--gold); border: 2px solid var(--shadow); }
+.pip.used { background: var(--edge); }
+.msg { min-height: 1.4em; margin: -4px 0 0; font: .875rem/1.4 var(--mono); color: var(--muted); }
+.msg.bad { color: var(--ember); }
+.result { background: var(--panel); border: 3px solid var(--edge); box-shadow: 6px 6px 0 var(--shadow); padding: 18px 16px; display: grid; gap: 12px; }
+.result h2 { margin: 0; font: 700 1.125rem/1.3 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--gold); }
+.result h2.f { color: var(--ember); }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; text-align: center; }
+.stats b { display: block; font: 700 1.375rem/1.2 var(--mono); font-variant-numeric: tabular-nums; }
+.stats span { font: .6875rem/1.3 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+.share-pre { margin: 0; padding: 10px; background: var(--bg); border: 2px solid var(--edge); font: .875rem/1.35 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.row2 { display: flex; flex-wrap: wrap; gap: 10px; }
+.row2 .go { flex: 1 1 140px; }
+footer { font: .75rem/1.5 var(--mono); color: var(--muted); text-align: center; }
+footer a { color: var(--gold); text-underline-offset: 3px; }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header class="top">
+    <h1 style="margin:0">{{TITLE_SVG}}</h1>
+    <a class="home" href="/">IO Games</a>
+  </header>
+
+  <div class="meta">
+    <div class="proto" id="proto" aria-label="Puzzle picker">
+      <button id="prev" type="button" aria-label="Previous puzzle">&lsaquo;</button>
+      <span id="pnum">#1</span>
+      <button id="next" type="button" aria-label="Next puzzle">&rsaquo;</button>
+    </div>
+    <span id="shape"></span>
+    <span class="clock" id="clock" aria-label="Time">0:00</span>
+  </div>
+
+  <details class="how" id="how">
+    <summary>How to play</summary>
+    <ul>
+      <li>Place the cards from your hand so every row and every column makes the poker hand written beside it.</li>
+      <li>Hands: <b>straight flush</b>, <b>four of a kind</b>, <b>three of a kind</b>, <b>straight</b>, <b>flush</b>, <b>two pair</b>, <b>pair</b>, <b>high card</b> (none of those). A line counts as its best hand only.</li>
+      <li>Aces are high or low in a straight (A 2 3 or Q K A), but straights don't wrap (no K A 2).</li>
+      <li>Tap a card in your hand, then an empty square. Tap a placed card to take it back. Darker cards are fixed in place.</li>
+      <li>Fill every square, then <b>Check</b>. You get 3 checks. Your score is checks plus hints, like golf: beat the par.</li>
+    </ul>
+  </details>
+
+  <div class="board-wrap"><div class="board" id="board" aria-label="Card grid"></div></div>
+
+  <div id="play" style="display:grid;gap:14px">
+    <div class="tray-wrap">
+      <div class="lbl">Your hand</div>
+      <div class="tray" id="tray"></div>
+    </div>
+    <div class="actions">
+      <button class="go" id="check" type="button" disabled>Check</button>
+      <button class="btn-s" id="hint" type="button">Hint</button>
+    </div>
+    <div class="actions" style="justify-content:space-between">
+      <div class="pips" id="pips" aria-label="Checks left"></div>
+      <button class="btn-s" id="clear" type="button" style="min-height:36px">Clear</button>
+    </div>
+    <p class="msg" id="msg" aria-live="polite"></p>
+  </div>
+
+  <section class="result" id="result" hidden>
+    <h2 id="rh"></h2>
+    <div id="rline"></div>
+    <div class="stats" id="stats"></div>
+    <pre class="share-pre" id="sharePre"></pre>
+    <div class="row2">
+      <button class="go" id="share" type="button">Copy result</button>
+      <button class="go alt" id="again" type="button">Reset puzzle</button>
+    </div>
+  </section>
+
+  <footer>Poker Rows prototype by IO Games, the makers of <a href="https://play.iogames.us">Rummycraft</a>. Your progress stays on this device.</footer>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  var GAME = "pokerrows", LIVE = {{LIVE}}, API = "{{API}}";
+  var KEY = "iogames-pr", MAX_CHECKS = 3;
+  function report(st) {
+    if (!LIVE || !API) return;
+    try { fetch(API, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ game: GAME, puzzle: P.id, result: st, score: st === "solved" ? score() : null }) }).catch(function () {}); } catch (e) {}
+  }
+  function dec(s) {
+    var b = atob(s), o = "";
+    for (var i = 0; i < b.length; i++) o += String.fromCharCode(b.charCodeAt(i) ^ KEY.charCodeAt(i % KEY.length));
+    return JSON.parse(o);
+  }
+  var PUZZLES = dec("{{DATA}}");
+  var SUIT = ["S", "H", "D", "C"], SYM = { S: "♠︎", H: "♥︎", D: "♦︎", C: "♣︎" };
+  var NAME = { S: "spades", H: "hearts", D: "diamonds", C: "clubs" };
+  var RK = ["", "A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+  function rank(c) { return Math.floor(c / 10); }
+  function suit(c) { return SUIT[c % 10]; }
+  function store(k, v) { try { if (v === undefined) { var r = localStorage.getItem(k); return r ? JSON.parse(r) : null; } localStorage.setItem(k, JSON.stringify(v)); } catch (e) { return null; } }
+  function $(id) { return document.getElementById(id); }
+
+  /* same hand rules as the puzzle generator */
+  function straight(rs) {
+    function run(a) { a = a.slice().sort(function (x, y) { return x - y; }); for (var i = 1; i < a.length; i++) if (a[i] !== a[i - 1] + 1) return false; return true; }
+    var u = {}; for (var i = 0; i < rs.length; i++) { if (u[rs[i]]) return false; u[rs[i]] = 1; }
+    return run(rs) || run(rs.map(function (r) { return r === 1 ? 14 : r; }));
+  }
+  function hand(cs) {
+    var rs = cs.map(rank), flush = cs.every(function (c) { return c % 10 === cs[0] % 10; }), st = straight(rs);
+    var cnt = {}; rs.forEach(function (r) { cnt[r] = (cnt[r] || 0) + 1; });
+    var counts = Object.keys(cnt).map(function (k) { return cnt[k]; }).sort(function (a, b) { return b - a; });
+    if (flush && st) return "Straight flush";
+    if (counts[0] === 4) return "Four of a kind";
+    if (counts[0] === 3) return "Three of a kind";
+    if (st) return "Straight";
+    if (flush) return "Flush";
+    if (counts[0] === 2 && counts[1] === 2) return "Two pair";
+    if (counts[0] === 2) return "Pair";
+    return "High card";
+  }
+
+  var P, S, idx, sel = -1, last = 0;
+  function N() { return P.n * P.n; }
+  function lines() { var n = P.n, L = [], r, c; for (r = 0; r < n; r++) { var a = []; for (c = 0; c < n; c++) a.push(r * n + c); L.push(a); } for (c = 0; c < n; c++) { var b = []; for (r = 0; r < n; r++) b.push(r * n + c); L.push(b); } return L; }
+  function isGiven(i) { return P.given.indexOf(i) >= 0; }
+  function trayCards() {
+    var placed = {}; S.cells.forEach(function (c) { if (c !== null) placed[c] = 1; });
+    var t = [];
+    for (var i = 0; i < N(); i++) if (!isGiven(i) && !placed[P.grid[i]]) t.push(P.grid[i]);
+    return t.sort(function (a, b) { return a % 10 - b % 10 || rank(a) - rank(b); });
+  }
+  function fresh() { var cells = []; for (var i = 0; i < P.n * P.n; i++) cells.push(P.given.indexOf(i) >= 0 ? P.grid[i] : null); return { cells: cells, locked: {}, lines: null, rows: [], checks: 0, hintCount: 0, elapsed: 0, started: false, status: "playing" }; }
+  function save() { store(KEY + ":p:" + P.id, S); }
+  function load(i) {
+    idx = i; P = PUZZLES[i];
+    S = store(KEY + ":p:" + P.id) || fresh();
+    store(KEY + ":last", P.id);
+    sel = -1;
+    $("pnum").textContent = "#" + P.id;
+    $("prev").disabled = i === 0; $("next").disabled = i === PUZZLES.length - 1;
+    $("shape").textContent = P.n + " × " + P.n + " · par " + P.par;
+    msg(""); render();
+  }
+  function start() { if (!S.started && S.status === "playing") { S.started = true; last = Date.now(); save(); } }
+  function editable(i) { return !isGiven(i) && !S.locked[i]; }
+
+  function tapTray(c) {
+    if (S.status !== "playing") return;
+    start();
+    sel = sel === c ? -1 : c;
+    S.lines = null; msg(""); render();
+  }
+  function tapCell(i) {
+    if (S.status !== "playing" || !editable(i)) return;
+    start(); S.lines = null;
+    if (sel >= 0) {
+      S.cells[i] = sel; sel = -1;
+      /* keep the next tray card ready if the player is filling in order */
+    } else if (S.cells[i] !== null) {
+      S.cells[i] = null;
+    } else {
+      msg("Pick a card from your hand first.");
+      return render();
+    }
+    msg(""); save(); render();
+  }
+  function filled() { return S.cells.every(function (c) { return c !== null; }); }
+  function check() {
+    if (S.status !== "playing" || !filled()) return;
+    start();
+    S.checks++;
+    var L = lines(), res = L.map(function (l, k) { return hand(l.map(function (i) { return S.cells[i]; })) === P.labels[k]; });
+    S.lines = res;
+    S.rows.push(S.cells.map(function (c, i) { return isGiven(i) ? 0 : S.locked[i] ? 2 : c === P.grid[i] ? 1 : 3; }));
+    if (res.every(Boolean)) { finish("solved"); return; }
+    if (S.checks >= MAX_CHECKS) {
+      S.wrong = {}; for (var i = 0; i < N(); i++) if (S.cells[i] !== P.grid[i]) S.wrong[i] = 1;
+      S.cells = P.grid.slice(); finish("failed"); return;
+    }
+    var ok = res.filter(Boolean).length, left = MAX_CHECKS - S.checks;
+    msg(ok + " of " + res.length + " lines make their hand. " + left + (left === 1 ? " check" : " checks") + " left.", "bad");
+    save(); render();
+  }
+  function hint() {
+    if (S.status !== "playing") return;
+    var i;
+    for (i = 0; i < N(); i++) if (editable(i) && S.cells[i] !== P.grid[i]) break;
+    if (i === N()) return;
+    start();
+    var want = P.grid[i];
+    for (var j = 0; j < N(); j++) if (j !== i && S.cells[j] === want) S.cells[j] = null;
+    S.cells[i] = want; S.locked[i] = true; S.hintCount++; sel = -1; S.lines = null;
+    var all = true; for (var k = 0; k < N(); k++) if (S.cells[k] !== P.grid[k]) all = false;
+    if (all) { S.rows.push(S.cells.map(function (c, x) { return isGiven(x) ? 0 : S.locked[x] ? 2 : 1; })); finish("solved"); return; }
+    msg(""); save(); render();
+  }
+  function clearAll() {
+    if (S.status !== "playing") return;
+    for (var i = 0; i < N(); i++) if (editable(i)) S.cells[i] = null;
+    sel = -1; S.lines = null; msg(""); save(); render();
+  }
+  function finish(st) {
+    S.status = st; sel = -1;
+    if (!S.counted) {
+      S.counted = true; report(st);
+      var stats = store(KEY + ":stats") || { played: 0, solved: 0, streak: 0, best: 0, lastId: null };
+      stats.played++;
+      if (st === "solved") { stats.solved++; stats.streak = stats.lastId === P.id - 1 ? stats.streak + 1 : 1; stats.best = Math.max(stats.best, stats.streak); }
+      else stats.streak = 0;
+      stats.lastId = P.id; store(KEY + ":stats", stats);
+    }
+    save(); render();
+  }
+  function score() { return S.checks + S.hintCount; }
+  function vsPar() { var d = score() - P.par; return d === 0 ? "even" : d < 0 ? (-d) + " under par" : d + " over par"; }
+  function fmt(ms) { var t = Math.floor(ms / 1000), m = Math.floor(t / 60), s = t % 60; return m + ":" + (s < 10 ? "0" : "") + s; }
+  function shareText() {
+    var sq = ["⬜", "🟩", "🟨", "🟥"];
+    var lastRow = S.rows.length ? S.rows[S.rows.length - 1] : S.cells.map(function (c, i) { return isGiven(i) ? 0 : S.locked[i] ? 2 : 1; });
+    var out = [];
+    for (var r = 0; r < P.n; r++) { var line = ""; for (var c = 0; c < P.n; c++) line += sq[lastRow[r * P.n + c]]; out.push(line); }
+    var head = "Poker Rows #" + P.id + " " + (S.status === "solved" ? score() + " (par " + P.par + ", " + vsPar() + ") in " + fmt(S.elapsed) : "X/" + MAX_CHECKS);
+    return head + "\n" + out.join("\n") + "\n" + S.checks + "/" + MAX_CHECKS + " checks, " + S.hintCount + (S.hintCount === 1 ? " hint" : " hints") + "\niogames.us/pokerrows";
+  }
+  function msg(t, cls) { var m = $("msg"); m.textContent = t || ""; m.className = "msg" + (cls ? " " + cls : ""); }
+
+  function cardEl(c, extra) {
+    var b = document.createElement("button"); b.type = "button";
+    b.className = "card " + suit(c) + (extra || "");
+    b.innerHTML = '<span class="r">' + RK[rank(c)] + '</span><span class="s">' + SYM[suit(c)] + "</span>";
+    b.setAttribute("aria-label", RK[rank(c)] + " of " + NAME[suit(c)]);
+    return b;
+  }
+  function render() {
+    var playing = S.status === "playing", n = P.n;
+    var avail = Math.min(document.documentElement.clientWidth, 520) - 32 - 22 - 80 - 6 * n;
+    var cw = Math.max(44, Math.min(n === 3 ? 76 : 64, Math.floor(avail / n)));
+    var board = $("board"); board.innerHTML = ""; board.className = "board n" + n;
+    board.style.setProperty("--cw", cw + "px");
+    board.style.gridTemplateColumns = "repeat(" + n + ", " + cw + "px) 80px";
+    var L = lines();
+    function labEl(k, isRow) {
+      var d = document.createElement("div"); d.className = "lab" + (isRow ? " row" : "");
+      var st = S.lines ? (S.lines[k] ? " ok" : " no") : (S.status === "solved" ? " ok" : "");
+      d.className += st;
+      d.innerHTML = '<span></span>' + (S.lines ? '<span class="mk">' + (S.lines[k] ? "✓ yes" : "✗ no") + "</span>" : "");
+      d.firstChild.textContent = P.labels[k];
+      d.setAttribute("aria-label", (isRow ? "Row " + (k + 1) : "Column " + (k - n + 1)) + " needs " + P.labels[k] + (S.lines ? (S.lines[k] ? ", correct" : ", not yet") : ""));
+      return d;
+    }
+    for (var r = 0; r < n; r++) {
+      for (var c = 0; c < n; c++) {
+        var i = r * n + c, card = S.cells[i], el;
+        if (card === null) {
+          el = document.createElement("button"); el.type = "button"; el.className = "slot" + (sel >= 0 && playing ? " target" : "");
+          el.setAttribute("aria-label", "Empty square, row " + (r + 1) + " column " + (c + 1));
+        } else {
+          el = cardEl(card, isGiven(i) ? " given" : S.locked[i] ? " lock" : (S.wrong && S.wrong[i] ? " bad" : ""));
+        }
+        (function (i) { el.addEventListener("click", function () { tapCell(i); }); })(i);
+        board.appendChild(el);
+      }
+      board.appendChild(labEl(r, true));
+    }
+    for (var k = n; k < 2 * n; k++) board.appendChild(labEl(k, false));
+    board.appendChild(document.createElement("div"));
+
+    var tray = $("tray"); tray.innerHTML = "";
+    var t = trayCards();
+    if (!t.length) { var d = document.createElement("span"); d.className = "done"; d.textContent = "All cards placed."; tray.appendChild(d); }
+    t.forEach(function (c) { var b = cardEl(c, sel === c ? " sel" : ""); b.setAttribute("aria-pressed", sel === c ? "true" : "false"); b.addEventListener("click", function () { tapTray(c); }); tray.appendChild(b); });
+    var full = filled();
+    $("check").disabled = !playing || !full;
+    $("check").textContent = full ? "Check" : "Place every card";
+    $("hint").disabled = !playing;
+    var pips = ""; for (var j = 0; j < MAX_CHECKS; j++) pips += '<span class="pip' + (j < S.checks ? " used" : "") + '"></span>';
+    $("pips").innerHTML = pips;
+    $("clock").textContent = fmt(S.elapsed);
+    $("play").hidden = !playing; $("result").hidden = playing;
+    if (!playing) {
+      var ok = S.status === "solved";
+      $("rh").textContent = ok ? "Full house" : "Out of checks"; $("rh").className = ok ? "" : "f";
+      $("rline").textContent = ok ? "Score " + score() + " against par " + P.par + " (" + vsPar() + "): " + S.checks + (S.checks === 1 ? " check" : " checks") + ", " + S.hintCount + (S.hintCount === 1 ? " hint" : " hints") + ". Time " + fmt(S.elapsed) + "."
+                                  : "The answer is filled in. Cards you had in the wrong place are in red.";
+      var st = store(KEY + ":stats") || { played: 0, solved: 0, streak: 0, best: 0 };
+      $("stats").innerHTML = '<div><b>' + st.played + '</b><span>Played</span></div><div><b>' + (st.played ? Math.round(100 * st.solved / st.played) : 0) + '%</b><span>Solved</span></div><div><b>' + st.streak + '</b><span>Streak</span></div><div><b>' + st.best + '</b><span>Best</span></div>';
+      $("sharePre").textContent = shareText();
+    }
+  }
+
+  function tick() {
+    if (S && S.started && S.status === "playing" && document.visibilityState === "visible") {
+      var now = Date.now(); if (last) S.elapsed += now - last; last = now;
+      $("clock").textContent = fmt(S.elapsed);
+      if ((S.elapsed / 1000 | 0) % 2 === 0) save();
+    } else last = Date.now();
+  }
+  document.addEventListener("visibilitychange", function () { last = Date.now(); if (S) save(); });
+  window.addEventListener("resize", function () { if (P) render(); });
+  $("check").addEventListener("click", check);
+  $("hint").addEventListener("click", hint);
+  $("clear").addEventListener("click", clearAll);
+  $("prev").addEventListener("click", function () { if (idx > 0) load(idx - 1); });
+  $("next").addEventListener("click", function () { if (idx < PUZZLES.length - 1) load(idx + 1); });
+  $("again").addEventListener("click", function () { S = fresh(); save(); load(idx); });
+  $("share").addEventListener("click", function () {
+    var t = shareText(), b = $("share");
+    function done(ok) { b.textContent = ok ? "Copied" : "Select the text above to copy"; setTimeout(function () { b.textContent = "Copy result"; }, 2000); }
+    function fallback() { var r = document.createRange(); r.selectNodeContents($("sharePre")); var s = getSelection(); s.removeAllRanges(); s.addRange(r); done(false); }
+    try { navigator.clipboard.writeText(t).then(function () { done(true); }, fallback); } catch (e) { fallback(); }
+  });
+  if (!store(KEY + ":seen")) { $("how").open = true; store(KEY + ":seen", 1); }
+  function indexOf(id) { for (var i = 0; i < PUZZLES.length; i++) if (PUZZLES[i].id === id) return i; return -1; }
+  if (LIVE) {
+    $("prev").hidden = true; $("next").hidden = true;
+    var known = store(KEY + ":current") || 1;
+    load(Math.max(0, indexOf(known)));
+    if (API) {
+      fetch(API).then(function (r) { return r.json(); }).then(function (d) {
+        var cur = d && d[GAME] && d[GAME].current;
+        if (cur && indexOf(cur) >= 0) { store(KEY + ":current", cur); if (cur !== P.id) load(indexOf(cur)); }
+      }).catch(function () {});
+    }
+  } else {
+    var lastId = store(KEY + ":last"), s0 = 0;
+    PUZZLES.forEach(function (p, i) { if (p.id === lastId) s0 = i; });
+    load(s0);
+  }
+  setInterval(tick, 250);
+})();
+</script>
+</body>
+</html>

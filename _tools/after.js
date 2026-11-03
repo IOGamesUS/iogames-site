@@ -34,7 +34,7 @@
   if (!me || !result) return;
 
   function scoreOf(id, S) {
-    if (id === "wordtangle" || id === "pemdash") return (S.checks || 0) + (S.hintCount || 0);
+    if (id === "wordtangle" || id === "pemdash" || id === "pokerrows") return (S.checks || 0) + (S.hintCount || 0);
     if (id === "meld") return (S.breaks || 0) + (S.hints || 0);
     return (S.backs || 0) + (S.hints || 0);
   }
